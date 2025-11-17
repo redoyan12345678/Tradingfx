@@ -1,0 +1,88 @@
+<script>
+    // ** Firebase Configuration & Init **
+    const firebaseConfig = {
+        apiKey: "AIzaSyCu3SwjRm3mbifkNXFAODff5aEnlJUxeL4", authDomain: "bd-trading-a35d4.firebaseapp.com", databaseURL: "https://bd-trading-a35d4-default-rtdb.firebaseio.com", projectId: "bd-trading-a35d4", storageBucket: "bd-trading-a35d4.firebasestorage.app", messagingSenderId: "147644641744", appId: "1:147644641744:web:96619587c0bfd1bee809d5"
+    };
+    
+    let auth, db;
+    let isFirebaseReady = false; // নতুন ফ্লাগ
+
+    // Firebase Initialization Function
+    function initializeFirebase() {
+        if (typeof firebase === 'undefined' || firebase.apps.length > 0) return;
+
+        try {
+            const app = firebase.initializeApp(firebaseConfig);
+            auth = firebase.auth();
+            db = firebase.database();
+            isFirebaseReady = true;
+            console.log("Firebase Auth & DB initialized.");
+            
+            // লগইন চেক: যদি ইউজার অলরেডি লগইন করা থাকে, তবে তাকে ইউজার অ্যাপে পাঠানো হবে।
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    console.log("User already logged in. Redirecting...");
+                    window.location.href = 'user_app.html';
+                }
+            });
+
+        } catch (error) { 
+            console.error("Firebase Initialization Failed:", error); 
+            alert("Firebase Initialization Error. Check console."); 
+        }
+    }
+
+    // ডকুমেন্ট লোড হওয়ার পর Firebase শুরু করুন
+    document.addEventListener('DOMContentLoaded', initializeFirebase);
+    
+    // Auth Logic
+    function handleAuth(isLogin) {
+        if (!isFirebaseReady) {
+            alert("Authentication service is not ready. Please wait a moment and try again.");
+            return;
+        }
+
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        if (!email || !password) { alert("Email and Password required."); return; }
+        
+
+        if (isLogin) {
+            auth.signInWithEmailAndPassword(email, password)
+                .then(() => {
+                    alert("Login Successful! Redirecting...");
+                    // onAuthStateChanged লিসেনারটি রিডাইরেক্ট হ্যান্ডেল করবে।
+                })
+                .catch(error => {
+                    console.error("Login Error:", error);
+                    alert(`Login Failed: ${error.message}`);
+                });
+        } else {
+            auth.createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    // DB তে ডিফল্ট ইউজার ডেটা সেট করা
+                    const ref = db.ref('users/' + userCredential.user.uid);
+                    return ref.once('value').then(snapshot => {
+                         if (!snapshot.exists()) {
+                            return ref.set({
+                                email: email,
+                                balance: 0.00, 
+                                name: email.split('@')[0],
+                                profilePic: 'default',
+                                pendingReward: null,
+                                referralId: userCredential.user.uid.substring(0, 8),
+                                referralCount: 0
+                            });
+                        }
+                    }).then(() => {
+                         alert("Registration Successful! Redirecting...");
+                         // onAuthStateChanged লিসেনারটি রিডাইরেক্ট হ্যান্ডেল করবে।
+                    });
+                })
+                .catch(error => {
+                    console.error("Registration Error:", error);
+                    alert(`Registration Failed: ${error.message}`);
+                });
+        }
+    }
+</script>
